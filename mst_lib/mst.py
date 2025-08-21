@@ -13,6 +13,7 @@ class GamePlatform(Enum):
   xbox = 0
   playstation = 1
   gamecube = 2
+  pc = 3
 
 
 class MST:
@@ -20,7 +21,10 @@ class MST:
     self.platform = None
     self.package_size = 0
     self.file_count = 0
-    self.unknown_bitmask = 0
+    self.majorVersion = 0
+    self.minorVersion = 0
+    self.subVersion = 0
+    self.platformMask = 0
     self.suffix_unknowns = []
     self.files = []
 
@@ -33,28 +37,31 @@ class MST:
       reader.little_endian = True
     elif header == 'GNAF':
       reader.little_endian = False
-      self.platform = GamePlatform.gamecube
     else:
       raise ProtocolException()
 
-    self.unknown_bitmask, self.package_size, self.file_count = reader.read_fmt('III')
-    self.suffix_unknowns = reader.read_fmt('I' * 23)
+    version, self.package_size, self.file_count = reader.read_fmt('III')
 
-    if reader.little_endian:
-      # no idea what this is, but seems to be 3 in PS2 builds, 2 in Xbox & GC
-      platform_id = self.suffix_unknowns[14]
-      print(platform_id)
-      if platform_id == 3:
-        self.platform = GamePlatform.playstation
-      elif platform_id == 2:
+    self.subVersion = version & 0xFF
+    self.minorVersion = (version >> 8) & 0xFF
+    self.majorVersion = (version >> 16) & 0xFF
+    self.platformMask = (version >> 24) & 0xFF
+
+    if self.platformMask & 0x01:
         self.platform = GamePlatform.xbox
-      else:
-        raise ProtocolException()
+    elif self.platformMask & 0x10:
+        self.platform = GamePlatform.gamecube
+    elif self.platformMask & 0x20:
+        self.platform = GamePlatform.playstation
+    elif self.platformMask & 0x04:
+        self.platform = GamePlatform.pc
+
+    self.suffix_unknowns = reader.read_fmt('I' * 23)
 
     self.files = []
     for i in range(self.file_count):
       file = MSTEntry()
-      file.read(reader, self.platform, disable_formatting)
+      file.read(reader, self.platform, self.majorVersion, self.minorVersion, self.subVersion, disable_formatting)
       self.files.append(file)
     return reader.little_endian
 
@@ -69,8 +76,14 @@ class MSTEntry:
     self.unknown = 0
     self.loader = None
 
-  def read(self, reader: BinaryIO, platform: GamePlatform, disable_formatting):
-    name_length = 24 if platform == GamePlatform.playstation else 20
+  def read(self, reader: BinaryIO, platform: GamePlatform, majorVersion, minorVersion, subVersion, disable_formatting):
+    if majorVersion == 1 and minorVersion <= 7:
+        name_length = 16
+    elif platform == GamePlatform.playstation:
+        name_length = 24
+    else:
+        name_length = 20
+
     self.name = reader.read_str(name_length).split('\0')[0] # important to re-add this when writing
     self.location, self.length, timestamp, self.unknown = reader.read_fmt('IIII')
     self.create_date = datetime.date.fromtimestamp(timestamp)
