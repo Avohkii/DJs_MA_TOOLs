@@ -93,7 +93,7 @@ class CSVHeader:
         if previous_type == "WIDESTRING":
           new_bytes += b'\x00'
         if field.data['data_type'] == "STRING":
-          new_bytes += bytearray(field.data['string'].encode("utf-8"))
+          new_bytes += bytearray(field.data['string'].encode("latin-1"))
           new_bytes.append(0x0)
           byteheader += new_bytes
         elif field.data['data_type'] == "WIDESTRING":
@@ -148,7 +148,7 @@ class CSVTable:
     return byteheader
 
   def keystring_to_bytes(self):
-    keystring = bytearray(self.data['keystring'].encode("utf-8"))
+    keystring = bytearray(self.data['keystring'].encode("latin-1"))
     #add additional padding to the string
     size = ma_util.roundup_4(self.data['keystring_pointer'] + self.data['keystring_length'] + 1) - (self.data['keystring_pointer']); 
     to_add = size - len(keystring)
@@ -156,6 +156,7 @@ class CSVTable:
       keystring.append(0x0)
     byteheader = keystring
     return byteheader, size
+
 
 class CSVField:
   def __init__(self, keystring, field):
@@ -181,7 +182,6 @@ class CSVField:
       self.data['data_type'] = "STRING"
       self.data['string'] = field
       self.data['string_length'] = len(field)
-
 
   def data_string(self):
     if self.data['data_type'] == "STRING":

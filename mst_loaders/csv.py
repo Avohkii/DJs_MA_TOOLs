@@ -67,7 +67,6 @@ class CSVLoader(Loader):
                     str_val = str_val.replace(",", "\\;")
                     str_val += "\n"
 
-
                     reader.seek(tmp_pos)
                     values.append(str_val)
                 else:
@@ -84,18 +83,16 @@ class CSVLoader(Loader):
     def save(self, handle):
         for key in self.data.keys():
           keystring = key.split("__")[0]
-          handle.write(keystring.encode('ascii', 'ignore'))
+          handle.write(keystring.encode('utf-8'))
           handle.write(",".encode())
           for item in self.data[key]:
             if isinstance(item, str):
-              handle.write(item.encode('ascii', "ignore"))
+              handle.write(item.encode('utf-8'))
               handle.write(",".encode())
             else:
-              handle.write(str(item).encode('ascii', 'ignore'))
+              handle.write(str(item).encode('utf-8'))
               handle.write(",".encode())
           handle.write("\n".encode())
 
-
-
     def reimport(self, handle):
-        self.data = json.loads(handle.read().decode())
+        self.data = json.loads(handle.read().decode('utf-8'))
